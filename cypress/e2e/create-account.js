@@ -1,50 +1,76 @@
 /// <reference types="cypress" />
 
-describe("Signup & Login", () => {
-
-    let randomstring = Math.random().toString(36).substring(2);
-    let testUsername = "Auto" + randomstring;
-    let testEmail = "Auto_email" + randomstring + "@gmail.com";
+describe("Signup Test", () => {
+    let randomString = Math.random().toString(36).substring(2);
+    const email = "auto_" + randomString + randomString + "@gmail.com";
     const password = "Password1";
-    const answer = "Strbac";
-
-    beforeEach(() => {
-        cy.log("Email: " + testEmail);
+    const securityAnswer = "Hello world";
+  
+    describe("UI tests", () => {
+      beforeEach(() => {
+        cy.log("Email: " + email);
         cy.log("Password: " + password);
-        cy.visit("http://localhost:3000/");
-        cy.get(".mat-button-wrapper").contains("Dismiss").click();
-        cy.get("#navbarAccount").click({ force: true });
+        cy.visit("http://localhost:3000/#/");
+        cy.get(".cdk-overlay-backdrop").click(-50, -50, { force: true });
+        cy.get("#navbarAccount").click();
         cy.get("#navbarLoginButton").click();
-    })
-
-    it("Test valid sign up", () => {
-        cy.get('.mat-simple-snackbar-action > .mat-focus-indicator').click();
-        cy.get("#newCustomerLink").click();
-        cy.get('#emailControl').type(testEmail);
-        cy.get('#passwordControl').type(password);
-        cy.get('#repeatPasswordControl').type(password);
-        cy.get('.mat-select-placeholder').click();
-        cy.get('.mat-option-text').contains("maiden name?").click();
-        cy.get('#securityAnswerControl').type(answer);
-        cy.get('#registerButton').click();
-        cy.get('.mat-simple-snack-bar-content').should("contain", "Registration completed successfully");
-    })
-    it("Test valid sign in", () => {
-        cy.get("#email").type(testEmail);
-        cy.get('#password').type(password);
-        cy.get('#loginButton').click();
-        cy.get('.mat-toolbar-row > .mat-focus-indicator.ng-star-inserted').should("contain", "Your Basket");
-    })
+      });
+  
+      it("Test valid signup", () => {
+        cy.get("#newCustomerLink")
+          .contains("Not yet a customer?")
+          .click({ force: true });
+        cy.get("#emailControl").type(email);
+        cy.get("#passwordControl").type(password);
+        cy.get("#repeatPasswordControl").type(password);
+        cy.get(
+          ".mat-form-field-type-mat-select > .mat-form-field-wrapper > .mat-form-field-flex > .mat-form-field-infix"
+        ).click();
+        cy.get("#mat-option-3 > .mat-option-text").click();
+        cy.get("#securityAnswerControl").type(securityAnswer);
+        cy.get("#registerButton").click();
+        cy.get(".mat-snack-bar-container").contains(
+          "Registration completed successfully."
+        );
+      });
+  
+      it("Test valid login", () => {
+        cy.get("#email").type(email);
+        cy.get("#password").type(password);
+        cy.get("#loginButton").click();
+        cy.get(".fa-layers-counter").contains(0);
+      });
+    });
+  
     describe("API tests", () => {
-        const userCredentials = {
-            "email": testEmail,
-            "password": password
-        }
-        it("Test valid sign in via api", () => {
+      const userCredentials = {
+        "email": email,
+        "password": password
+      }
+        it("Test Login via API (Non UI)", () => {
             cy.request("POST", "http://localhost:3000/rest/user/login", userCredentials)
-                .then(response => {
-                    expect(response.status).to.eq(200)
-                })
+            .then(response => {
+                expect(response.status).to.eq(200);
+            })
         })
-    })
-})
+  
+        it("Login via Token (Non UI)", () => {
+          cy.request("POST", "http://localhost:3000/rest/user/login", userCredentials)
+          .its('body').then(body => {
+            const token = body.authentication.token
+            cy.wrap(token).as("userToken")
+  
+            const userToken = cy.get("@userToken")
+            cy.visit("http://localhost:3000/", {
+              onBeforeLoad(browser) {
+                browser.localStorage.setItem("token", userToken)
+              }
+            })
+            cy.wait(2000)
+            cy.get(".cdk-overlay-backdrop").click(-50, -50, { force: true });
+            cy.get(".fa-layers-counter").contains(0);
+          })
+        })
+    }) 
+  });
+  
